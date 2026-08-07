@@ -205,7 +205,7 @@ def _generate_sparse_AC_SYSTEM(n, m):
         u, v = nodes[i], nodes[i+1]
         r, x = np.random.uniform(0.01, 0.1), np.random.uniform(0.1, 1.0)
         denom = r**2+x**2
-        g, b = r/denom, 1/denom
+        g, b = r/denom, x/denom
         G[u, v] = G[v, u] = -g
         B[u, v] = B[v, u] = -b
 
@@ -218,7 +218,8 @@ def _generate_sparse_AC_SYSTEM(n, m):
         for idx in idxs:
             u, v = iu[idx], ju[idx]
             r, x = np.random.uniform(0.01, 0.1), np.random.uniform(0.1, 1.0)
-            g, b = r/denom, 1/denom
+            denom = r**2+x**2
+            g, b = r/denom, x/denom
             G[u, v] = G[v, u] = -g
             B[u, v] = B[v, u] = -b
 
@@ -240,7 +241,7 @@ def _generate_sparse_AC_SYSTEM(n, m):
     V_mag = (V_mag - 1.0) / 0.1
     theta = (theta - 0.0) / (np.pi/3)
 
-    return G, G, P, Q, V_mag, theta
+    return G, B, P, Q, V_mag, theta
 
 
 class ACSystemProblemGenerator:
