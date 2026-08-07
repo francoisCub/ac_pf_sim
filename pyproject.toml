@@ -1,0 +1,19 @@
+[project]
+name = "ac-pf-sim"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "francoisCub", email = "f.cubelier@uliege.be" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "energnn>=0.4.0",
+]
+
+[project.scripts]
+ac-pf-sim = "ac_pf_sim:main"
+
+[build-system]
+requires = ["uv_build>=0.12.1,<0.13.0"]
+build-backend = "uv_build"
