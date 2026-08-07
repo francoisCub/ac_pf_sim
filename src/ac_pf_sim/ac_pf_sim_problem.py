@@ -190,7 +190,7 @@ class ACSystemProblem(Problem):
         pass
 
 
-def _generate_sparse_AC_SYSTEM(n, m):
+def _generate_sparse_AC_SYSTEM(n, m, vmin=0.9, vmax=1.1, thetamin=-np.pi/6, thetamax=np.pi/6, rmin=0.01, rmax=0.1, xmin=0.1, xmax=1.0, shunt_conductance=0.1):
     """Generates sparse matrix G, B and vectors P, Q and theta such that Kirchoff laws are respected for a AC network."""
     # Ensure connectivity by building a spanning tree first
     B = np.zeros((n, n))
@@ -200,7 +200,7 @@ def _generate_sparse_AC_SYSTEM(n, m):
     # Spanning tree
     for i in range(n - 1):
         u, v = nodes[i], nodes[i+1]
-        r, x = np.random.uniform(0.01, 0.1), np.random.uniform(0.1, 1.0)
+        r, x = np.random.uniform(rmin, rmax), np.random.uniform(xmin, xmax)
         denom = r**2+x**2
         g, b = r/denom, x/denom
         G[u, v] = G[v, u] = -g
@@ -214,7 +214,7 @@ def _generate_sparse_AC_SYSTEM(n, m):
         idxs = np.random.choice(free, n_extra, replace=False)
         for idx in idxs:
             u, v = iu[idx], ju[idx]
-            r, x = np.random.uniform(0.01, 0.1), np.random.uniform(0.1, 1.0)
+            r, x = np.random.uniform(rmin, rmax), np.random.uniform(xmin, xmax)
             denom = r**2+x**2
             g, b = r/denom, x/denom
             G[u, v] = G[v, u] = -g
@@ -222,10 +222,10 @@ def _generate_sparse_AC_SYSTEM(n, m):
 
 
     Y = G + 1j * B
-    Y += np.eye(n) * 0.1
+    Y += np.eye(n) * shunt_conductance
 
-    V_mag = np.random.uniform(0.95, 1.05, n)
-    theta = np.random.uniform(-np.pi/6, np.pi/6, n)
+    V_mag = np.random.uniform(vmin, vmax, n)
+    theta = np.random.uniform(thetamin, thetamax, n)
     V_complex = V_mag * np.exp(1j * theta)
 
     I_complex = Y @ V_complex
@@ -234,9 +234,9 @@ def _generate_sparse_AC_SYSTEM(n, m):
     P = np.real(S_complex)
     Q = np.imag(S_complex)
 
-    # Rescale targets !!!
-    V_mag = (V_mag - 1.0) / 0.1
-    theta = (theta - 0.0) / (np.pi/3)
+    # Center and rescale targets
+    V_mag = (V_mag - (vmax+vmin)/2 ) / (vmax-vmin)
+    theta = (theta - (thetamax+thetamin)/2) / (thetamax-thetamin)
 
     return G, B, P, Q, V_mag, theta
 
