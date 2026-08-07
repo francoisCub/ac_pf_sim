@@ -36,19 +36,25 @@ class _LineElementsConverter(ElementsConverter):
 class _BusElementsConverter(ElementsConverter):
     """Extracts bus injections: active power (p) and reactive power (q)."""
 
-    def _get_table(self, *, P: np.ndarray, Q: np.ndarray, **kwargs) -> pd.DataFrame:
+    def _get_table(self, *, P: np.ndarray, Q: np.ndarray, V_set: np.ndarray, is_pq: np.ndarray, is_pv: np.ndarray, is_slack: np.ndarray, **kwargs) -> pd.DataFrame:
         return pd.DataFrame({
             "id": np.arange(P.shape[0]), 
             "p": P, 
-            "q": Q
+            "q": Q,
+            "v_set": V_set,
+            "is_pq":is_pq,
+            "is_pv": is_pv,
+            "is_slack": is_slack,
         })
 
 
 class _OracleBusElementsConverter(ElementsConverter):
     """Extracts ACPF solution: voltage magnitude (v) and phase angle (theta)."""
 
-    def _get_table(self, *, V: np.ndarray, theta: np.ndarray) -> pd.DataFrame:
+    def _get_table(self, *, P: np.ndarray, Q: np.ndarray, V: np.ndarray, theta: np.ndarray) -> pd.DataFrame:
         return pd.DataFrame({
+            "p": P, 
+            "q": Q,
             "v": V, 
             "theta": theta
         })
@@ -60,7 +66,7 @@ class ACSystemContextConverter(Converter):
     def __init__(self):
         self.elements_converter_dict = {
             "line": _LineElementsConverter(port_list=["from", "to"], feature_list=["g", "b"]),
-            "bus": _BusElementsConverter(port_list=["id"], feature_list=["p", "q"]),
+            "bus": _BusElementsConverter(port_list=["id"], feature_list=["p", "q", "v_set", "is_pq", "is_pv", "is_slack"]),
         }
 
 
@@ -72,7 +78,7 @@ class ACSystemOracleConverter(Converter):
 
     def __init__(self):
         self.elements_converter_dict = {
-            "bus": _OracleBusElementsConverter(port_list=None, feature_list=["v", "theta"]),
+            "bus": _OracleBusElementsConverter(port_list=None, feature_list=["p", "q", "v", "theta"]),
         }
 
 
@@ -235,12 +241,26 @@ def _generate_sparse_AC_SYSTEM(n, m, vmin=0.9, vmax=1.1, thetamin=-np.pi/6, thet
     P = np.real(S_complex)
     Q = np.imag(S_complex)
 
+    is_slack = np.zeros(n, dtype=int)
+    is_pv = np.zeros(n, dtype=int)
+    is_pq = np.zeros(n, dtype=int)
+
+    # slack bus
+    slack_idx = np.argmax(P)
+    is_slack[slack_idx] = 1
+
+    # PV buses
+    pv_mask = (P > 0) & (np.arange(n) != slack_idx)
+    is_pv[pv_mask] = 1
+
+    # PQ buses
+    is_pq = 1 - (is_slack + is_pv)
+
     # Center and rescale targets
-    V_mag = (V_mag - (vmax+vmin)/2 ) / (vmax-vmin)
-    theta = (theta - (thetamax+thetamin)/2) / (thetamax-thetamin)
+    V_mag = (V_mag - (vmax+vmin) / 2 ) / (vmax-vmin)
+    theta = (theta - (thetamax+thetamin) / 2) / (thetamax-thetamin)
 
-    return G, B, P, Q, V_mag, theta
-
+    return G, B, P, Q, V_mag, theta, is_pq, is_pv, is_slack
 
 class ACSystemProblemGenerator:
     __test__ = False
@@ -263,10 +283,10 @@ class ACSystemProblemGenerator:
             backend = JaxBackend()
         n = np.random.randint(2, self.n_max + 1)
         m = np.random.randint(n - 1, 3 * n)
-        G, B, P, Q, V, theta = _generate_sparse_AC_SYSTEM(n, m)
+        G, B, P, Q, V, theta, is_pq, is_pv, is_slack = _generate_sparse_AC_SYSTEM(n, m)
 
-        context = self.context_converter(G=G, B=B, P=P, Q=Q)
-        oracle = self.oracle_converter(V=V, theta=theta)
+        context = self.context_converter(G=G, B=B, P=P, Q=Q, V_set=V, is_pq=is_pq, is_pv=is_pv, is_slack=is_slack)
+        oracle = self.oracle_converter(P=P, Q=Q, V=V, theta=theta)
 
         if isinstance(backend, NumpyBackend):
             return ACSystemProblem(context=context, oracle=oracle)
