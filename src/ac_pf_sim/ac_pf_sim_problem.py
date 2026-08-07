@@ -204,7 +204,7 @@ def _generate_sparse_AC_SYSTEM(n, m, vmin=0.9, vmax=1.1, thetamin=-np.pi/6, thet
         denom = r**2+x**2
         g, b = r/denom, x/denom
         G[u, v] = G[v, u] = -g
-        B[u, v] = B[v, u] = -b
+        B[u, v] = B[v, u] = b
 
     # Add remaining m - (n-1) edges among the still-free upper-triangular pairs
     iu, ju = np.triu_indices(n, k=1)
@@ -218,9 +218,10 @@ def _generate_sparse_AC_SYSTEM(n, m, vmin=0.9, vmax=1.1, thetamin=-np.pi/6, thet
             denom = r**2+x**2
             g, b = r/denom, x/denom
             G[u, v] = G[v, u] = -g
-            B[u, v] = B[v, u] = -b
+            B[u, v] = B[v, u] = b
 
-
+    np.fill_diagonal(G, -G.sum(axis=1))
+    np.fill_diagonal(B, -B.sum(axis=1))
     Y = G + 1j * B
     Y += np.eye(n) * shunt_conductance
 
