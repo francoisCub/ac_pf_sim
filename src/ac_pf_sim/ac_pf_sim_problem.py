@@ -197,9 +197,6 @@ def _generate_sparse_AC_SYSTEM(n, m):
     G = np.zeros((n, n))
     nodes = np.arange(n)
     np.random.shuffle(nodes)
-    u, v = nodes[:-1], nodes[1:]
-    weights = np.random.rand(n - 1) + 0.5
-    B[u, v] = B[v, u] = -weights
     # Spanning tree
     for i in range(n - 1):
         u, v = nodes[i], nodes[i+1]
